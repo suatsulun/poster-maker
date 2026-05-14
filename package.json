@@ -70,6 +70,9 @@
     "linux": {
       "target": "AppImage",
       "category": "Graphics"
+    },
+    "mac": {
+      "target": "zip"
     }
   }
 }
