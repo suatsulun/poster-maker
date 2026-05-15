@@ -8,8 +8,6 @@ import type { Orientation, SizingMode } from '@/lib/paper'
 import { computeLayout } from '@/lib/tiling'
 import { generatePosterPDF } from '@/lib/pdf'
 
-
-
 function App() {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -17,6 +15,7 @@ function App() {
   const [orientation, setOrientation] = useState<Orientation>('portrait')
   const [mode, setMode] = useState<SizingMode>({ kind: 'sheetsWide', cols: 3 })
   const [overlapMm, setOverlapMm] = useState(5)
+  const [safeMarginMm, setSafeMarginMm] = useState(3)
   const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
@@ -51,8 +50,8 @@ function App() {
   const layout = useMemo(() => {
     if (!image) return null
     const aspect = image.naturalWidth / image.naturalHeight
-    return computeLayout(aspect, orientation, mode, overlapMm)
-  }, [image, orientation, mode, overlapMm])
+    return computeLayout(aspect, orientation, mode, overlapMm, safeMarginMm)
+  }, [image, orientation, mode, overlapMm, safeMarginMm])
 
   async function handleGenerate() {
     if (!image || !layout) return
@@ -92,9 +91,7 @@ function App() {
             </div>
             <div>
               <h1 className="text-base font-semibold leading-tight">Poster Maker</h1>
-              <p className="text-[11px] text-muted-foreground">
-                Big posters from A4 sheets
-              </p>
+              <p className="text-[11px] text-muted-foreground">Big posters from A4 sheets</p>
             </div>
           </div>
         </div>
@@ -108,6 +105,8 @@ function App() {
             setMode={setMode}
             overlapMm={overlapMm}
             setOverlapMm={setOverlapMm}
+            safeMarginMm={safeMarginMm}
+            setSafeMarginMm={setSafeMarginMm}
             onGenerate={handleGenerate}
             generating={generating}
           />

@@ -20,12 +20,9 @@ export function Preview({ image, layout }: Props) {
     const containerW = container.clientWidth
     const containerH = container.clientHeight
 
-    const scale = Math.min(
-      (containerW - 48) / layout.posterWmm,
-      (containerH - 48) / layout.posterHmm,
-    )
-    const drawW = layout.posterWmm * scale
-    const drawH = layout.posterHmm * scale
+    const scale = Math.min((containerW - 48) / layout.gridWmm, (containerH - 48) / layout.gridHmm)
+    const drawW = layout.gridWmm * scale
+    const drawH = layout.gridHmm * scale
     const offsetX = (containerW - drawW) / 2
     const offsetY = (containerH - drawH) / 2
 
@@ -38,6 +35,7 @@ export function Preview({ image, layout }: Props) {
 
     ctx.clearRect(0, 0, containerW, containerH)
 
+    // Paper / grid background.
     ctx.save()
     ctx.shadowColor = 'rgba(15, 23, 42, 0.18)'
     ctx.shadowBlur = 24
@@ -46,8 +44,14 @@ export function Preview({ image, layout }: Props) {
     ctx.fillRect(offsetX, offsetY, drawW, drawH)
     ctx.restore()
 
-    ctx.drawImage(image, offsetX, offsetY, drawW, drawH)
+    // Image rendered at its actual sub-rect (aspect preserved).
+    const imgX = offsetX + layout.imageLeftMm * scale
+    const imgY = offsetY + layout.imageTopMm * scale
+    const imgW = layout.imageWmm * scale
+    const imgH = layout.imageHmm * scale
+    ctx.drawImage(image, imgX, imgY, imgW, imgH)
 
+    // Tile divider lines.
     ctx.strokeStyle = 'rgba(37, 99, 235, 0.9)'
     ctx.lineWidth = 1.5
     ctx.setLineDash([8, 5])
@@ -70,6 +74,21 @@ export function Preview({ image, layout }: Props) {
     ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)'
     ctx.lineWidth = 1
     ctx.strokeRect(offsetX + 0.5, offsetY + 0.5, drawW, drawH)
+
+    // Tile numbers — small markers in the bottom-right of each cell.
+    const cellW = layout.strideXmm * scale
+    const cellH = layout.strideYmm * scale
+    const fontPx = Math.max(9, Math.min(14, Math.min(cellW, cellH) * 0.18))
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
+    ctx.font = `600 ${fontPx}px ui-sans-serif, system-ui, sans-serif`
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    for (let r = 0; r < layout.rows; r++) {
+      for (let c = 0; c < layout.cols; c++) {
+        const n = r * layout.cols + c + 1
+        ctx.fillText(String(n), offsetX + (c + 1) * cellW - 4, offsetY + (r + 1) * cellH - 3)
+      }
+    }
   }, [image, layout])
 
   return (
@@ -103,7 +122,7 @@ export function Preview({ image, layout }: Props) {
           </span>
           <span className="text-muted-foreground">sheets ·</span>
           <span className="tabular-nums">
-            {(layout.posterWmm / 10).toFixed(1)} × {(layout.posterHmm / 10).toFixed(1)} cm
+            {(layout.imageWmm / 10).toFixed(1)} × {(layout.imageHmm / 10).toFixed(1)} cm
           </span>
         </div>
       )}

@@ -18,6 +18,8 @@ type Props = {
   setMode: (m: SizingMode) => void
   overlapMm: number
   setOverlapMm: (n: number) => void
+  safeMarginMm: number
+  setSafeMarginMm: (n: number) => void
   onGenerate: () => void
   generating: boolean
 }
@@ -32,6 +34,8 @@ export function Controls(props: Props) {
     setMode,
     overlapMm,
     setOverlapMm,
+    safeMarginMm,
+    setSafeMarginMm,
     onGenerate,
     generating,
   } = props
@@ -114,8 +118,7 @@ export function Controls(props: Props) {
           <Tabs
             value={mode.kind}
             onValueChange={(v) => {
-              if (v === 'sheetsWide')
-                setMode({ kind: 'sheetsWide', cols: getCols(mode) })
+              if (v === 'sheetsWide') setMode({ kind: 'sheetsWide', cols: getCols(mode) })
               else if (v === 'sheetsWH')
                 setMode({ kind: 'sheetsWH', cols: getCols(mode), rows: getRows(mode) })
               else setMode({ kind: 'physical', widthCm: getWidthCm(mode) })
@@ -202,25 +205,44 @@ export function Controls(props: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>4. Overlap</CardTitle>
+          <CardTitle>4. Margins</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-xs text-muted-foreground">
-              Tape seam allowance
-            </Label>
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
-              {overlapMm} mm
-            </span>
+        <CardContent className="flex flex-col gap-5">
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-xs text-muted-foreground">Overlap (tape seam)</Label>
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                {overlapMm} mm
+              </span>
+            </div>
+            <Slider
+              className="mt-3"
+              min={0}
+              max={20}
+              step={1}
+              value={[overlapMm]}
+              onValueChange={(v) => setOverlapMm(v[0] ?? 0)}
+            />
           </div>
-          <Slider
-            className="mt-3"
-            min={0}
-            max={20}
-            step={1}
-            value={[overlapMm]}
-            onValueChange={(v) => setOverlapMm(v[0] ?? 0)}
-          />
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-xs text-muted-foreground">Printer safe margin</Label>
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                {safeMarginMm} mm
+              </span>
+            </div>
+            <Slider
+              className="mt-3"
+              min={0}
+              max={10}
+              step={1}
+              value={[safeMarginMm]}
+              onValueChange={(v) => setSafeMarginMm(v[0] ?? 0)}
+            />
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Most printers can't print to the paper edge. 3 mm is safe for most inkjets.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
