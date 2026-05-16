@@ -413,7 +413,22 @@ function DraftNumberInput({
       max={max}
       step={step}
       value={draft}
-      onFocus={() => setEditing(true)}
+      onFocus={(e) => {
+        setEditing(true)
+        // Select all so the next keystroke replaces the current value. Some
+        // browsers ignore .select() on type=number when called synchronously
+        // during focus, so we retry on the next frame too.
+        const el = e.currentTarget
+        const selectAll = () => {
+          try {
+            el.select()
+          } catch {
+            /* type=number can reject in older engines — ignore */
+          }
+        }
+        selectAll()
+        requestAnimationFrame(selectAll)
+      }}
       onChange={handleChange}
       onBlur={commit}
       onKeyDown={handleKeyDown}
