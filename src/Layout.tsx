@@ -2,8 +2,8 @@ import { type ReactNode } from 'react'
 
 const Footer = () => {
   return (
-    <footer className="border-t py-6 text-center text-sm text-gray-500">
-      <p>© {new Date().getFullYear()} Suat Sülün. All rights reserved.</p>
+    <footer className="shrink-0 border-t bg-card/60 px-4 py-1.5 text-center text-[11px] text-muted-foreground backdrop-blur-md">
+      © {new Date().getFullYear()} Suat Sülün. All rights reserved.
     </footer>
   )
 }
@@ -13,10 +13,12 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  // Mobile: allow the page to grow + scroll so the controls fit below the
+  // preview. Desktop (md+): pin the whole UI to one viewport — only inner
+  // panels scroll when their content overflows.
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1">{children}</main>
-
+    <div className="flex min-h-dvh flex-col md:h-screen md:overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       <Footer />
     </div>
   )

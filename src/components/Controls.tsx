@@ -1,15 +1,12 @@
 import {
   useEffect,
-  useRef,
   useState,
   type ChangeEvent,
-  type DragEvent,
   type KeyboardEvent,
 } from 'react'
-import { ImageIcon, Download, Loader2, RectangleHorizontal, RectangleVertical } from 'lucide-react'
-import { PAPER_SIZES, type Orientation, type PaperSize, type SizingMode } from '@/lib/paper'
+import { RectangleHorizontal, RectangleVertical } from 'lucide-react'
+import type { Orientation, SizingMode } from '@/lib/paper'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,10 +14,6 @@ import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type Props = {
-  onImageChosen: (file: File) => void
-  imageFileName: string | null
-  paperSize: PaperSize
-  setPaperSize: (p: PaperSize) => void
   orientation: Orientation
   setOrientation: (o: Orientation) => void
   mode: SizingMode
@@ -29,16 +22,10 @@ type Props = {
   setOverlapMm: (n: number) => void
   safeMarginMm: number
   setSafeMarginMm: (n: number) => void
-  onGenerate: () => void
-  generating: boolean
 }
 
 export function Controls(props: Props) {
   const {
-    onImageChosen,
-    imageFileName,
-    paperSize,
-    setPaperSize,
     orientation,
     setOrientation,
     mode,
@@ -47,84 +34,15 @@ export function Controls(props: Props) {
     setOverlapMm,
     safeMarginMm,
     setSafeMarginMm,
-    onGenerate,
-    generating,
   } = props
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  function handleFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) onImageChosen(file)
-  }
-
-  function handleDrop(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault()
-    const file = e.dataTransfer.files?.[0]
-    if (file && file.type.startsWith('image/')) onImageChosen(file)
-  }
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <Card>
-        <CardHeader>
-          <CardTitle>1. Image</CardTitle>
+        <CardHeader className="px-3 py-2">
+          <CardTitle className="text-xs">1. Orientation</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-background/50 p-5 text-center transition-all',
-              'hover:border-primary/60 hover:bg-primary/5 hover:-translate-y-0.5 hover:shadow-md',
-            )}
-          >
-            <ImageIcon className="h-7 w-7 text-muted-foreground transition-colors group-hover:text-primary" />
-            <p className="text-xs text-muted-foreground">
-              {imageFileName ? (
-                <span className="font-medium text-foreground">{imageFileName}</span>
-              ) : (
-                <>Drop an image here or click to browse</>
-              )}
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFile}
-              className="hidden"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>2. Paper size</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 gap-2">
-            {PAPER_SIZES.map((p) => (
-              <PaperSizeButton
-                key={p}
-                active={paperSize === p}
-                onClick={() => setPaperSize(p)}
-                label={p}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {paperSizeLabel(paperSize)}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>3. Orientation</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3 pt-0">
           <div className="grid grid-cols-2 gap-2">
             <OrientationButton
               active={orientation === 'portrait'}
@@ -143,10 +61,10 @@ export function Controls(props: Props) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>4. Poster size</CardTitle>
+        <CardHeader className="px-3 py-2">
+          <CardTitle className="text-xs">2. Poster size</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3 pt-0">
           <Tabs
             value={mode.kind}
             onValueChange={(v) => {
@@ -217,19 +135,19 @@ export function Controls(props: Props) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>5. Margins</CardTitle>
+        <CardHeader className="px-3 py-2">
+          <CardTitle className="text-xs">3. Margins</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent className="flex flex-col gap-3 px-3 pb-3 pt-0">
           <div>
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-xs text-muted-foreground">Overlap (tape seam)</Label>
-              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+              <Label className="text-[11px] text-muted-foreground">Overlap (tape seam)</Label>
+              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
                 {overlapMm} mm
               </span>
             </div>
             <Slider
-              className="mt-3"
+              className="mt-2"
               min={0}
               max={20}
               step={1}
@@ -239,91 +157,36 @@ export function Controls(props: Props) {
           </div>
           <div>
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-xs text-muted-foreground">Printer safe margin</Label>
-              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+              <Label className="text-[11px] text-muted-foreground">Printer safe margin</Label>
+              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
                 {safeMarginMm} mm
               </span>
             </div>
             <Slider
-              className="mt-3"
+              className="mt-2"
               min={0}
               max={10}
               step={1}
               value={[safeMarginMm]}
               onValueChange={(v) => setSafeMarginMm(v[0] ?? 0)}
             />
-            <p className="mt-2 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-[10px] text-muted-foreground">
               Most printers can't print to the paper edge. 3 mm is safe for most inkjets.
             </p>
           </div>
         </CardContent>
       </Card>
-
-      <Button
-        size="lg"
-        onClick={onGenerate}
-        disabled={!imageFileName || generating}
-        className="w-full"
-      >
-        {generating ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Generating…
-          </>
-        ) : (
-          <>
-            <Download className="h-4 w-4" />
-            Download PDF
-          </>
-        )}
-      </Button>
     </div>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <div className="flex flex-col gap-1">
+      <Label className="text-[11px] text-muted-foreground">{label}</Label>
       {children}
     </div>
   )
-}
-
-function PaperSizeButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'rounded-md border bg-background py-2 text-xs font-medium transition-all',
-        'hover:-translate-y-0.5 hover:shadow-sm',
-        active
-          ? 'border-primary bg-primary/10 text-primary shadow-sm'
-          : 'border-border text-muted-foreground hover:border-primary/40',
-      )}
-    >
-      {label}
-    </button>
-  )
-}
-
-function paperSizeLabel(p: PaperSize): string {
-  const dims: Record<PaperSize, string> = {
-    A1: '594 × 841 mm',
-    A2: '420 × 594 mm',
-    A3: '297 × 420 mm',
-    A4: '210 × 297 mm',
-    A5: '148 × 210 mm',
-  }
-  return dims[p]
 }
 
 function OrientationButton({
@@ -341,8 +204,8 @@ function OrientationButton({
     <button
       onClick={onClick}
       className={cn(
-        'flex flex-col items-center justify-center gap-1.5 rounded-lg border bg-background py-3 text-sm transition-all',
-        'hover:-translate-y-0.5 hover:shadow-md',
+        'flex flex-col items-center justify-center gap-1 rounded-lg border bg-background py-3 text-xs transition-all touch-manipulation sm:py-2',
+        'hover:-translate-y-0.5 hover:shadow-sm',
         active
           ? 'border-primary bg-primary/10 text-primary font-medium shadow-sm'
           : 'border-border text-muted-foreground hover:border-primary/40',
@@ -379,7 +242,6 @@ function DraftNumberInput({
   const [draft, setDraft] = useState(() => String(value))
   const [editing, setEditing] = useState(false)
 
-  // While not editing, mirror external value changes (mode switches, etc.).
   useEffect(() => {
     if (!editing) setDraft(String(value))
   }, [value, editing])
@@ -388,7 +250,6 @@ function DraftNumberInput({
     const raw = e.target.value
     setDraft(raw)
     if (raw === '' || raw === '-') {
-      // Empty → drive preview to the minimum, but leave the field empty.
       onChange(min)
       return
     }
@@ -409,15 +270,13 @@ function DraftNumberInput({
     <Input
       type="number"
       inputMode="numeric"
+      className="h-10 touch-manipulation sm:h-9"
       min={min}
       max={max}
       step={step}
       value={draft}
       onFocus={(e) => {
         setEditing(true)
-        // Select all so the next keystroke replaces the current value. Some
-        // browsers ignore .select() on type=number when called synchronously
-        // during focus, so we retry on the next frame too.
         const el = e.currentTarget
         const selectAll = () => {
           try {
