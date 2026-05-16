@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ImageIcon } from 'lucide-react'
-import type { Layout } from '@/lib/tiling'
+import { tilePrintNumber, type Layout } from '@/lib/tiling'
 
 type Props = {
   image: HTMLImageElement | null
@@ -85,7 +85,8 @@ export function Preview({ image, layout }: Props) {
     ctx.textBaseline = 'bottom'
     for (let r = 0; r < layout.rows; r++) {
       for (let c = 0; c < layout.cols; c++) {
-        const n = r * layout.cols + c + 1
+        const n = tilePrintNumber(layout, c, r)
+        if (n === null) continue
         ctx.fillText(String(n), offsetX + (c + 1) * cellW - 4, offsetY + (r + 1) * cellH - 3)
       }
     }

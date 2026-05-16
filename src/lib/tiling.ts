@@ -1,4 +1,4 @@
-import { paperSizeMm, type Orientation, type SizingMode } from './paper'
+import { paperSizeMm, type Orientation, type PaperSize, type SizingMode } from './paper'
 
 export type Layout = {
   cols: number
@@ -27,12 +27,13 @@ export type Layout = {
 
 export function computeLayout(
   imageAspect: number, // width / height
+  paperSize: PaperSize,
   orientation: Orientation,
   mode: SizingMode,
   overlapMm: number,
   safeMarginMm: number,
 ): Layout {
-  const paper = paperSizeMm(orientation)
+  const paper = paperSizeMm(paperSize, orientation)
   // Each side loses overlap (printable seam) + safeMargin (unprintable border).
   const insetPerSide = overlapMm + safeMarginMm
   const strideX = Math.max(1, paper.w - 2 * insetPerSide)
@@ -62,10 +63,12 @@ export function computeLayout(
       imageWmm = imageHmm * imageAspect
     }
   } else {
-    const targetWmm = Math.max(strideX, mode.widthCm * 10)
-    cols = Math.max(1, Math.ceil(targetWmm / strideX))
-    imageWmm = cols * strideX
+    // Honor the requested width exactly — even if it leaves a partially-blank
+    // strip on the last column/row. The grid still snaps to whole sheets, but
+    // the image inside it stays at the user-specified cm dimensions.
+    imageWmm = Math.max(1, mode.widthCm * 10)
     imageHmm = imageWmm / imageAspect
+    cols = Math.max(1, Math.ceil(imageWmm / strideX))
     rows = Math.max(1, Math.ceil(imageHmm / strideY))
   }
 
@@ -103,4 +106,19 @@ export function tileHasContent(layout: Layout, c: number, r: number): boolean {
     Math.max(tileX0, layout.imageLeftMm) < Math.min(tileX1, imgX1) &&
     Math.max(tileY0, layout.imageTopMm) < Math.min(tileY1, imgY1)
   )
+}
+
+// Map (c,r) → 1-based print number that skips blank tiles, or null when blank.
+// Numbering still flows left-to-right, top-to-bottom; blanks are simply omitted
+// so the sequence on the guide page matches the sheets that actually print.
+export function tilePrintNumber(layout: Layout, c: number, r: number): number | null {
+  if (!tileHasContent(layout, c, r)) return null
+  let n = 0
+  for (let rr = 0; rr <= r; rr++) {
+    const lastC = rr === r ? c : layout.cols - 1
+    for (let cc = 0; cc <= lastC; cc++) {
+      if (tileHasContent(layout, cc, rr)) n++
+    }
+  }
+  return n
 }

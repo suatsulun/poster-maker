@@ -1,11 +1,24 @@
 import { jsPDF } from 'jspdf'
-import { tileHasContent, type Layout } from './tiling'
+import { tileHasContent, tilePrintNumber, type Layout } from './tiling'
 
-// Higher print density = sharper output. 10 px/mm ≈ 254 DPI.
-const PX_PER_MM = 10
-const JPEG_QUALITY = 0.94
+// Render density bounds in canvas px per mm of poster.
+//   10 px/mm ≈ 254 DPI — sharper than any home printer, fine ceiling.
+//    4 px/mm ≈ 100 DPI — floor so small source images don't render too soft.
+// Actual density is picked per-job based on what the source image can supply:
+// rendering far beyond the image's native pixels only burns memory and CPU
+// (a 50 MP per-tile canvas is mostly nearest-neighbor stretched).
+const MAX_PX_PER_MM = 10
+const MIN_PX_PER_MM = 4
+const JPEG_QUALITY = 0.92
 // mm → PDF points (jspdf uses pt for text). 1 mm ≈ 2.8346 pt.
 const MM_TO_PT = 72 / 25.4
+
+function pickPxPerMm(image: HTMLImageElement, imageWmm: number, imageHmm: number) {
+  const native = Math.min(image.naturalWidth / imageWmm, image.naturalHeight / imageHmm)
+  // 1.5× native gives a little headroom for the sharpen pass without runaway upscale.
+  const target = native * 1.5
+  return Math.max(MIN_PX_PER_MM, Math.min(MAX_PX_PER_MM, target))
+}
 
 export async function generatePosterPDF(image: HTMLImageElement, layout: Layout): Promise<Blob> {
   const {
@@ -37,8 +50,9 @@ export async function generatePosterPDF(image: HTMLImageElement, layout: Layout)
   drawCoverPage(pdf, image, layout)
 
   // ---------- Tile pages ----------
-  const tilePxW = Math.round(paperWmm * PX_PER_MM)
-  const tilePxH = Math.round(paperHmm * PX_PER_MM)
+  const pxPerMm = pickPxPerMm(image, imageWmm, imageHmm)
+  const tilePxW = Math.round(paperWmm * pxPerMm)
+  const tilePxH = Math.round(paperHmm * pxPerMm)
   const canvas = document.createElement('canvas')
   canvas.width = tilePxW
   canvas.height = tilePxH
@@ -50,13 +64,13 @@ export async function generatePosterPDF(image: HTMLImageElement, layout: Layout)
   const imgPxPerMmX = image.naturalWidth / imageWmm
   const imgPxPerMmY = image.naturalHeight / imageHmm
   // Effective upscale factor (>1 means we're stretching pixels — sharpening helps).
-  const upscaleX = PX_PER_MM / imgPxPerMmX
-  const upscaleY = PX_PER_MM / imgPxPerMmY
+  const upscaleX = pxPerMm / imgPxPerMmX
+  const upscaleY = pxPerMm / imgPxPerMmY
   const upscale = Math.max(upscaleX, upscaleY)
 
   // Content area on the tile canvas: inset by overlap (printable seam) + safe margin.
   const innerInsetMm = overlapMm + safeMarginMm
-  const innerInsetPx = innerInsetMm * PX_PER_MM
+  const innerInsetPx = innerInsetMm * pxPerMm
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -91,25 +105,31 @@ export async function generatePosterPDF(image: HTMLImageElement, layout: Layout)
         const sw = (xb - xa) * imgPxPerMmX
         const sh = (yb - ya) * imgPxPerMmY
         // Destination on the tile canvas: content area starts at the inner inset.
-        const dx = innerInsetPx + (xa - tileX0) * PX_PER_MM
-        const dy = innerInsetPx + (ya - tileY0) * PX_PER_MM
-        const dw = (xb - xa) * PX_PER_MM
-        const dh = (yb - ya) * PX_PER_MM
+        const dx = innerInsetPx + (xa - tileX0) * pxPerMm
+        const dy = innerInsetPx + (ya - tileY0) * pxPerMm
+        const dw = (xb - xa) * pxPerMm
+        const dh = (yb - ya) * pxPerMm
         ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh)
 
-        // Sharpen only when we're noticeably upscaling — strength scales gently.
-        if (upscale > 1.3) {
+        // Sharpen only at moderate upscale — at extreme upscale it just amplifies
+        // blockiness, and the unsharp pass is the most expensive part per tile.
+        if (upscale > 1.3 && upscale < 3) {
           const amount = Math.min(0.55, 0.18 * (upscale - 1))
           applyUnsharpMask(ctx, dx, dy, dw, dh, amount)
         }
       }
 
-      drawCropMarks(ctx, paperWmm, paperHmm, overlapMm, safeMarginMm)
-      drawTileNumber(ctx, r * cols + c + 1, paperWmm, paperHmm, overlapMm, safeMarginMm)
+      drawCropMarks(ctx, pxPerMm, paperWmm, paperHmm, overlapMm, safeMarginMm)
+      const printN = tilePrintNumber(layout, c, r)
+      if (printN !== null) {
+        drawTileNumber(ctx, pxPerMm, printN, paperWmm, paperHmm, overlapMm, safeMarginMm)
+      }
 
       pdf.addPage([paperWmm, paperHmm])
       const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY)
       pdf.addImage(dataUrl, 'JPEG', 0, 0, paperWmm, paperHmm)
+      // Yield to the event loop so the toast/UI can update between heavy tiles.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
     }
   }
 
@@ -291,9 +311,9 @@ function drawCoverPage(pdf: jsPDF, image: HTMLImageElement, layout: Layout) {
   pdf.setFontSize(fontPt)
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!tileHasContent(layout, c, r)) continue
+      const n = tilePrintNumber(layout, c, r)
+      if (n === null) continue
       pdf.setTextColor(40)
-      const n = r * cols + c + 1
       const cx = ox + (c + 0.5) * strideXmm * scale
       const cy = oy + (r + 0.5) * strideYmm * scale + fontPt / (2 * MM_TO_PT) - 0.4
       pdf.text(String(n), cx, cy, { align: 'center' })
@@ -338,6 +358,7 @@ function renderThumbnail(image: HTMLImageElement, maxSide: number): string | nul
 
 function drawCropMarks(
   ctx: CanvasRenderingContext2D,
+  pxPerMm: number,
   paperWmm: number,
   paperHmm: number,
   overlapMm: number,
@@ -353,7 +374,7 @@ function drawCropMarks(
 
   // Mark length: short, capped so it stays well inside the printable overlap.
   const markMm = Math.min(3, overlapMm * 0.55)
-  const m = markMm * PX_PER_MM
+  const m = markMm * pxPerMm
 
   ctx.save()
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
@@ -368,8 +389,8 @@ function drawCropMarks(
     [cx1, cy1, +1, +1],
   ]
   for (const [x, y, dx, dy] of corners) {
-    const px = x * PX_PER_MM
-    const py = y * PX_PER_MM
+    const px = x * pxPerMm
+    const py = y * pxPerMm
     ctx.beginPath()
     ctx.moveTo(px, py)
     ctx.lineTo(px + dx * m, py)
@@ -384,6 +405,7 @@ function drawCropMarks(
 
 function drawTileNumber(
   ctx: CanvasRenderingContext2D,
+  pxPerMm: number,
   n: number,
   paperWmm: number,
   paperHmm: number,
@@ -405,7 +427,7 @@ function drawTileNumber(
   const maxByH = cornerHmm - 2 * padMm
   const maxByW = (cornerWmm - 2 * padMm) / Math.max(1, text.length * 0.6)
   const fontMm = Math.max(1.6, Math.min(maxByH, maxByW, 5))
-  const fontPx = fontMm * PX_PER_MM
+  const fontPx = fontMm * pxPerMm
 
   ctx.save()
   ctx.fillStyle = '#888'
@@ -413,8 +435,8 @@ function drawTileNumber(
   ctx.textAlign = 'right'
   ctx.textBaseline = 'alphabetic'
   // Anchor: bottom-right of the printable area (paper edge minus safe margin minus padding).
-  const xPx = (paperWmm - safeMarginMm - padMm) * PX_PER_MM
-  const yPx = (paperHmm - safeMarginMm - padMm) * PX_PER_MM
+  const xPx = (paperWmm - safeMarginMm - padMm) * pxPerMm
+  const yPx = (paperHmm - safeMarginMm - padMm) * pxPerMm
   ctx.fillText(text, xPx, yPx)
   ctx.restore()
 }

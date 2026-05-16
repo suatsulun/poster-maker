@@ -4,14 +4,15 @@ import { Printer, Sparkles } from 'lucide-react'
 import { Controls } from '@/components/Controls'
 import { Preview } from '@/components/Preview'
 import { Toaster } from '@/components/ui/sonner'
-import type { Orientation, SizingMode } from '@/lib/paper'
-import { computeLayout } from '@/lib/tiling'
+import type { Orientation, PaperSize, SizingMode } from '@/lib/paper'
+import { computeLayout, tileHasContent } from '@/lib/tiling'
 import { generatePosterPDF } from '@/lib/pdf'
 
 function App() {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageFileName, setImageFileName] = useState<string | null>(null)
+  const [paperSize, setPaperSize] = useState<PaperSize>('A4')
   const [orientation, setOrientation] = useState<Orientation>('portrait')
   const [mode, setMode] = useState<SizingMode>({ kind: 'sheetsWide', cols: 3 })
   const [overlapMm, setOverlapMm] = useState(5)
@@ -50,14 +51,25 @@ function App() {
   const layout = useMemo(() => {
     if (!image) return null
     const aspect = image.naturalWidth / image.naturalHeight
-    return computeLayout(aspect, orientation, mode, overlapMm, safeMarginMm)
-  }, [image, orientation, mode, overlapMm, safeMarginMm])
+    return computeLayout(aspect, paperSize, orientation, mode, overlapMm, safeMarginMm)
+  }, [image, paperSize, orientation, mode, overlapMm, safeMarginMm])
+
+  const printedSheets = useMemo(() => {
+    if (!layout) return 0
+    let n = 0
+    for (let r = 0; r < layout.rows; r++) {
+      for (let c = 0; c < layout.cols; c++) {
+        if (tileHasContent(layout, c, r)) n++
+      }
+    }
+    return n
+  }, [layout])
 
   async function handleGenerate() {
     if (!image || !layout) return
     setGenerating(true)
     const toastId = toast.loading('Generating PDF…', {
-      description: `${layout.cols} × ${layout.rows} A4 sheets`,
+      description: `${layout.cols} × ${layout.rows} ${paperSize} sheets`,
     })
     try {
       const blob = await generatePosterPDF(image, layout)
@@ -99,6 +111,8 @@ function App() {
           <Controls
             onImageChosen={handleImage}
             imageFileName={imageFileName}
+            paperSize={paperSize}
+            setPaperSize={setPaperSize}
             orientation={orientation}
             setOrientation={setOrientation}
             mode={mode}
@@ -118,13 +132,13 @@ function App() {
           <div>
             <h2 className="text-sm font-semibold">Preview</h2>
             <p className="text-xs text-muted-foreground">
-              Red dashed lines show where each A4 page divides.
+              Red dashed lines show where each {paperSize} page divides.
             </p>
           </div>
           {layout && (
             <div className="flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium shadow-sm">
               <Sparkles className="h-3 w-3 text-primary" />
-              {layout.cols * layout.rows} sheets
+              {printedSheets} sheet{printedSheets === 1 ? '' : 's'}
             </div>
           )}
         </div>

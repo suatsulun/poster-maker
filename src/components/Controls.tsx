@@ -1,6 +1,13 @@
-import { useRef, type ChangeEvent, type DragEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type KeyboardEvent,
+} from 'react'
 import { ImageIcon, Download, Loader2, RectangleHorizontal, RectangleVertical } from 'lucide-react'
-import type { Orientation, SizingMode } from '@/lib/paper'
+import { PAPER_SIZES, type Orientation, type PaperSize, type SizingMode } from '@/lib/paper'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 type Props = {
   onImageChosen: (file: File) => void
   imageFileName: string | null
+  paperSize: PaperSize
+  setPaperSize: (p: PaperSize) => void
   orientation: Orientation
   setOrientation: (o: Orientation) => void
   mode: SizingMode
@@ -28,6 +37,8 @@ export function Controls(props: Props) {
   const {
     onImageChosen,
     imageFileName,
+    paperSize,
+    setPaperSize,
     orientation,
     setOrientation,
     mode,
@@ -90,7 +101,28 @@ export function Controls(props: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>2. Orientation</CardTitle>
+          <CardTitle>2. Paper size</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-5 gap-2">
+            {PAPER_SIZES.map((p) => (
+              <PaperSizeButton
+                key={p}
+                active={paperSize === p}
+                onClick={() => setPaperSize(p)}
+                label={p}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {paperSizeLabel(paperSize)}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>3. Orientation</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2">
@@ -112,7 +144,7 @@ export function Controls(props: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>3. Poster size</CardTitle>
+          <CardTitle>4. Poster size</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs
@@ -132,17 +164,12 @@ export function Controls(props: Props) {
 
             <TabsContent value="sheetsWide">
               <Field label="Sheets across">
-                <Input
-                  type="number"
+                <DraftNumberInput
                   min={1}
-                  max={20}
+                  max={50}
+                  step={1}
                   value={mode.kind === 'sheetsWide' ? mode.cols : 3}
-                  onChange={(e) =>
-                    setMode({
-                      kind: 'sheetsWide',
-                      cols: clamp(parseInt(e.target.value) || 1, 1, 20),
-                    })
-                  }
+                  onChange={(n) => setMode({ kind: 'sheetsWide', cols: n })}
                 />
               </Field>
             </TabsContent>
@@ -150,32 +177,24 @@ export function Controls(props: Props) {
             <TabsContent value="sheetsWH">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Columns">
-                  <Input
-                    type="number"
+                  <DraftNumberInput
                     min={1}
-                    max={20}
+                    max={50}
+                    step={1}
                     value={mode.kind === 'sheetsWH' ? mode.cols : 3}
-                    onChange={(e) =>
-                      mode.kind === 'sheetsWH' &&
-                      setMode({
-                        ...mode,
-                        cols: clamp(parseInt(e.target.value) || 1, 1, 20),
-                      })
+                    onChange={(n) =>
+                      mode.kind === 'sheetsWH' && setMode({ ...mode, cols: n })
                     }
                   />
                 </Field>
                 <Field label="Rows">
-                  <Input
-                    type="number"
+                  <DraftNumberInput
                     min={1}
-                    max={20}
+                    max={50}
+                    step={1}
                     value={mode.kind === 'sheetsWH' ? mode.rows : 4}
-                    onChange={(e) =>
-                      mode.kind === 'sheetsWH' &&
-                      setMode({
-                        ...mode,
-                        rows: clamp(parseInt(e.target.value) || 1, 1, 20),
-                      })
+                    onChange={(n) =>
+                      mode.kind === 'sheetsWH' && setMode({ ...mode, rows: n })
                     }
                   />
                 </Field>
@@ -184,18 +203,12 @@ export function Controls(props: Props) {
 
             <TabsContent value="physical">
               <Field label="Target width (cm)">
-                <Input
-                  type="number"
-                  min={10}
-                  max={500}
+                <DraftNumberInput
+                  min={1}
+                  max={2000}
                   step={1}
                   value={mode.kind === 'physical' ? mode.widthCm : 60}
-                  onChange={(e) =>
-                    setMode({
-                      kind: 'physical',
-                      widthCm: clamp(parseFloat(e.target.value) || 10, 10, 500),
-                    })
-                  }
+                  onChange={(n) => setMode({ kind: 'physical', widthCm: n })}
                 />
               </Field>
             </TabsContent>
@@ -205,7 +218,7 @@ export function Controls(props: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>4. Margins</CardTitle>
+          <CardTitle>5. Margins</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <div>
@@ -277,6 +290,42 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function PaperSizeButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'rounded-md border bg-background py-2 text-xs font-medium transition-all',
+        'hover:-translate-y-0.5 hover:shadow-sm',
+        active
+          ? 'border-primary bg-primary/10 text-primary shadow-sm'
+          : 'border-border text-muted-foreground hover:border-primary/40',
+      )}
+    >
+      {label}
+    </button>
+  )
+}
+
+function paperSizeLabel(p: PaperSize): string {
+  const dims: Record<PaperSize, string> = {
+    A1: '594 × 841 mm',
+    A2: '420 × 594 mm',
+    A3: '297 × 420 mm',
+    A4: '210 × 297 mm',
+    A5: '148 × 210 mm',
+  }
+  return dims[p]
+}
+
 function OrientationButton({
   active,
   onClick,
@@ -308,6 +357,70 @@ function OrientationButton({
 function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n))
 }
+
+// Number input that keeps a local "draft" of the typed text so the field can be
+// emptied or contain an out-of-range number while the user is mid-edit. The
+// committed value passed to onChange is always clamped to [min, max] (so the
+// preview stays consistent), but what the user sees only snaps to that clamped
+// value on Enter or blur — not while they type.
+function DraftNumberInput({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+}: {
+  value: number
+  onChange: (n: number) => void
+  min: number
+  max: number
+  step?: number
+}) {
+  const [draft, setDraft] = useState(() => String(value))
+  const [editing, setEditing] = useState(false)
+
+  // While not editing, mirror external value changes (mode switches, etc.).
+  useEffect(() => {
+    if (!editing) setDraft(String(value))
+  }, [value, editing])
+
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value
+    setDraft(raw)
+    if (raw === '' || raw === '-') {
+      // Empty → drive preview to the minimum, but leave the field empty.
+      onChange(min)
+      return
+    }
+    const n = parseFloat(raw)
+    if (Number.isFinite(n)) onChange(clamp(n, min, max))
+  }
+
+  function commit() {
+    setEditing(false)
+    setDraft(String(value))
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+  }
+
+  return (
+    <Input
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      step={step}
+      value={draft}
+      onFocus={() => setEditing(true)}
+      onChange={handleChange}
+      onBlur={commit}
+      onKeyDown={handleKeyDown}
+    />
+  )
+}
+
 function getCols(m: SizingMode) {
   return m.kind === 'sheetsWide' || m.kind === 'sheetsWH' ? m.cols : 3
 }
