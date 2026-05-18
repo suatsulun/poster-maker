@@ -1,6 +1,6 @@
 [package]
 name = "poster-maker"
-version = "0.1.0"
+version = "1.0.0"
 description = "Big posters from A4 sheets"
 authors = ["Poster Maker"]
 edition = "2021"
