@@ -28,7 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Graphics",
+    "category": "GraphicsAndDesign",
     "shortDescription": "Big posters from A4 sheets",
     "longDescription": "Tile large posters across multiple printer-paper sheets.",
     "icon": [
